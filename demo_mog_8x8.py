@@ -102,10 +102,10 @@ class MoG:
         return math.sqrt(max(0.0, R**2 - tau**2))
 
 
-class Grid4x4Mixture(MoG):
+class Grid8x8Mixture(MoG):
     """Mixture of 16 Gaussians arranged in a 4×4 grid"""
 
-    def __init__(self, device, grid_size=4, spacing=10.0, scale=0.2):
+    def __init__(self, device, grid_size=8, spacing=10.0, scale=0.1):
         """Constructor
 
         Args:
@@ -139,7 +139,7 @@ class Grid4x4Mixture(MoG):
 
 
 if __name__ == "__main__":
-    gmm = Grid4x4Mixture(device="cpu")
+    gmm = Grid8x8Mixture(device="cpu")
     true_particles = gmm.sample((2000, 2))
 
     initial_particles = torch.zeros_like(true_particles)
@@ -150,7 +150,7 @@ if __name__ == "__main__":
         score_fn=gmm.score, 
         initial_particles=initial_particles,
         step_size=0.1,
-        num_steps=10000
+        num_steps=100
     )
     particles_lmc = lmc.sample().detach().numpy()
     # Adam Langevin 
@@ -167,96 +167,21 @@ if __name__ == "__main__":
     fig, axs = plt.subplots(1, 3, figsize=(18, 5))
     axs[0].scatter(true_particles[:, 0], true_particles[:, 1], s=20, alpha=0.5, color='blue')
     axs[0].set_title(f"ground truth")
-    axs[0].set_xlim(-20, 20) 
-    axs[0].set_ylim(-20, 20)
+    axs[0].set_xlim(-40,40)
+    axs[0].set_ylim(-40,40)
     axs[0].grid(True, alpha=0.3)
     axs[1].scatter(particles_lmc[:, 0], particles_lmc[:, 1], s=20, alpha=0.5, color='blue')
     axs[1].set_title(f"LMC")
-    axs[1].set_xlim(-20, 20) 
-    axs[1].set_ylim(-20, 20) 
+    axs[1].set_xlim(-40,40)
+    axs[1].set_ylim(-40,40)
     axs[1].grid(True, alpha=0.3)
     axs[2].scatter(particles_adam_lmc[:, 0], particles_adam_lmc[:, 1], s=20, alpha=0.5, color='blue')
     axs[2].set_title(f"Adam LMC")
-    axs[2].set_xlim(-20, 20) 
-    axs[2].set_ylim(-20, 20) 
+    axs[2].set_xlim(-40,40)
+    axs[2].set_ylim(-40,40)
     axs[2].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig("sampling.pdf", dpi=1200)
+    plt.savefig("sampling_mog_8x8.pdf", dpi=1200)
 
-    # ----------------------------
-    print("cyclincal langevin")
-    cyclical_lmc = CyclicalLangevin(
-        score_fn=gmm.score,
-        initial_particles=initial_particles,
-        num_cycles=10,
-        cycle_length=200,
-        max_step_size=0.5,
-        min_step_size=0.005,
-        ratio=0.9
-    )
-    all_samples_lmc, collected_samples_lmc = cyclical_lmc.sample()
-
-    print("cyclincal adam langevin")
-    cyclical_adam_lmc = CyclicalAdamLangevin(
-        score_fn=gmm.score,
-        initial_particles=initial_particles,
-        num_cycles=10,
-        cycle_length=2000,
-        max_step_size=0.5,
-        min_step_size=0.001,
-        ratio=0.9
-    )
-    all_samples_adam_lmc, collected_samples_adam_lmc = cyclical_adam_lmc.sample()
-
-    print("Plotting results...")
-    all_samples_lmc = np.array(all_samples_lmc)
-    collected_samples_lmc = np.array(collected_samples_lmc)
-    all_samples_adam_lmc = np.array(all_samples_adam_lmc)
-    collected_samples_adam_lmc = np.array(collected_samples_adam_lmc)
     
-    fig, axs = plt.subplots(2, 3, figsize=(18, 10))
-
-    axs[0, 0].scatter(true_particles[:, 0], true_particles[:, 1], s=20, alpha=0.5, color='blue')
-    axs[0, 0].set_title(f"ground truth")
-    axs[0, 0].set_xlim(-20, 20) 
-    axs[0, 0].set_ylim(-20, 20) 
-    axs[0, 0].grid(True, alpha=0.3)
-    # Full Trajectory (Exploration)
-    # Shows the path moving between modes
-    axs[0, 1].scatter(all_samples_lmc[:, 0], all_samples_lmc[:, 1], s=20, alpha=0.5, color='blue')
-    axs[0, 1].set_title(f"Full Trajectory")
-    axs[0, 1].set_xlim(-20, 20) 
-    axs[0, 1].set_ylim(-20, 20) 
-    axs[0, 1].grid(True, alpha=0.3)
-    # Collected Samples (Cold)
-    # Shows that we successfully sampled BOTH modes
-    axs[0, 2].scatter(collected_samples_lmc[:, 0], collected_samples_lmc[:, 1], s=20, alpha=0.5, color='blue')
-    axs[0, 2].set_title("Collected Samples (Low Temp Only)")
-    axs[0, 2].set_xlim(-20, 20) 
-    axs[0, 2].set_ylim(-20, 20) 
-    axs[0, 2].grid(True, alpha=0.3)
-
-    axs[1, 0].scatter(true_particles[:, 0], true_particles[:, 1], s=20, alpha=0.5, color='blue')
-    axs[1, 0].set_title(f"ground truth")
-    axs[1, 0].set_xlim(-20, 20) 
-    axs[1, 0].set_ylim(-20, 20) 
-    axs[1, 0].grid(True, alpha=0.3)
-    # Full Trajectory (Exploration)
-    # Shows the path moving between modes
-    axs[1, 1].scatter(all_samples_adam_lmc[:, 0], all_samples_adam_lmc[:, 1], s=20, alpha=0.5, color='blue')
-    axs[1, 1].set_title(f"Full Trajectory")
-    axs[1, 1].set_xlim(-20, 20) 
-    axs[1, 1].set_ylim(-20, 20) 
-    axs[1, 1].grid(True, alpha=0.3)
-    # Collected Samples (Cold)
-    # Shows that we successfully sampled BOTH modes
-    axs[1, 2].scatter(collected_samples_adam_lmc[:, 0], collected_samples_adam_lmc[:, 1], s=20, alpha=0.5, color='blue')
-    axs[1, 2].set_title("Collected Samples (Low Temp Only)")
-    axs[1, 2].set_xlim(-20, 20) 
-    axs[1, 2].set_ylim(-20, 20) 
-    axs[1, 2].grid(True, alpha=0.3)
-
-    plt.tight_layout()
-    plt.savefig("cyclincal_sampling.pdf", dpi=1200)
-
